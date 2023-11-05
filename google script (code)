@@ -1,0 +1,69 @@
+function onOpen() {
+  const ui = SpreadsheetApp.getUi();
+  const menu = ui.createMenu('Generate Image');
+  menu.addItem('Generate Image and Caption Report', 'downloadImagesAndPasteToDoc');
+  menu.addToUi();
+}
+
+function downloadImagesAndPasteToDoc() {
+  // active spreadsheet and sheetk
+  var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = spreadsheet.getActiveSheet();
+
+  // the range of image URLs and captions
+  var range = sheet.getDataRange();   
+  var data = range.getValues();
+
+  // new Google Doc
+  var doc = DocumentApp.create('Image Captions');
+  var docId = doc.getId();
+  var body = doc.getBody();
+
+  // create new table
+  var table = body.appendTable();
+  var row = table.appendTableRow();
+  var columnCount = 0;
+
+  // Loop through each row 
+  for (var i = 0; i < data.length; i++) {
+    var imageURL = data[i][0];
+    var caption = data[i][1];
+
+    try {
+      // Download the image
+      var imageBlob = UrlFetchApp.fetch(imageURL).getBlob();
+
+      // Resize the image
+      var imageCell = row.appendTableCell();
+      var image = imageCell.insertImage(0, imageBlob);
+      image.setWidth(300); // Desired pixels width
+      image.setHeight(200); // Desired pixels height 
+
+      // Create a new row for the caption
+      table.appendTableRow().appendTableCell().setText(caption);
+
+    
+      columnCount++;
+
+      // Create a new row for each new page or when columnCount reaches 2
+      if (columnCount === 2) {
+        table = body.appendTable();
+        row = table.appendTableRow();
+        columnCount = 0;
+      }
+    } catch (e) {
+      Logger.log('Error fetching image at URL: ' + imageURL);
+      
+      continue; // if error skip the current iteration and move to the next row.
+    }
+  }
+
+  // Save and close the Google Doc
+  doc.saveAndClose();
+
+  // Provide the download link for the generated Google Doc
+  Logger.log('Generated Google Doc: ' + doc.getUrl());
+
+  // Remove the temporary Google Doc file
+  DriveApp.getFileById(docId).setTrashed(true);
+}
